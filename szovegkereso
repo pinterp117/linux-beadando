@@ -1,0 +1,87 @@
+#!/bin/bash
+szerzo="false"
+dal="false"
+
+hasznalat() {
+  cat << EOF
+    Dalszöveg kereső beadandó feladat
+    Használat:
+      -s  A dal szerzője
+      -d  A dal címe
+      -h  Használati útmutató
+    Példa:
+      ./szovegkereso -s Post Malone -d Better Now
+EOF
+}
+
+getSzoveg() {
+  szoveg=$(wget -qO- "https://api.lyrics.ovh/v1/$szerzo/$dal")
+  tisztaSzoveg=`echo "$szoveg" | python3 -c "from __future__ import print_function; import sys, json; print(json.load(sys.stdin)['lyrics'])"`
+  if [[ $tisztaSzoveg == "" ]]; then { 
+    echo "Hiba! Nem találtunk ilyen dalszöveget. Biztos minden helyesen lett kitöltve?"; 
+    return 1; 
+    }; 
+  else echo $szerzo "-tól/-től a(z) " $dal " című dal szövege: "
+  fi
+}
+
+while getopts "s:d:h" parameter; do
+  case "$parameter" in
+    s)
+        szerzo="true"
+        if [ "$(echo "$@" | grep -Eo "\-d")" == "-d" ]; then 
+          dal="true";
+	      fi 
+        ;;
+    d)
+        dal="true"
+        if [ "$(echo "$@" | grep -Eo "\-s")" == "-s" ]; then 
+          szerzo="true";
+      	fi
+        ;;
+    h)  
+        hasznalat
+        exit 0
+        ;;
+    :)  
+        echo "A -$OPTARG paraméternek értéket kell adni!" >&2
+        exit 1
+        ;;
+    \?) 
+        echo "Nincs ilyen paraméter: -$OPTARG" >&2
+        exit 1
+        ;;
+  esac
+done
+
+#parancs lekezelés
+if [ $# == "0" ]; then
+  hasznalat 
+  exit 0
+elif [ $# == "1" ]; then
+  if [ $1 == "help" ] || [ $1 == "használat" ] || [ $1 == "segítség" ]; then
+    hasznalat
+    exit 0
+  else echo "Nincs ilyen paraméter!"
+  fi
+fi
+
+if ($szerzo && ! $dal)  || ($dal && ! $szerzo); then 
+  echo "Hiba! Mindket paraméter szükséges a dalszöveg megkereséséhez!"
+  exit 1
+elif $szerzo && $dal; then 
+  dal=$(echo "$@" | grep -Eo "\-d [ a-z A-Z 0-9 . \ ]*[ -]?" | sed s/-d//g | sed s/-//g | sed s/^" "//g)
+  if [[ $dal == "" ]]; then { 
+    echo "Hiba! Ilyen című dal nem található!";
+    exit 1; 
+    };
+  fi
+  szerzo=$(echo "$@" | grep -Eo "\-s [ a-z A-Z 0-9 . \ ]*[ -]?" | sed s/-s//g | sed s/-//g | sed s/^" "//g)
+  if [[ $szerzo == "" ]]; then { 
+    echo "Hiba! Ilyen szerző nem található!"; 
+    exit 1; 
+    };
+  fi
+  getSzoveg "$szerzo" "$dal" || exit 1
+  echo "$tisztaSzoveg"
+fi
