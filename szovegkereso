@@ -82,6 +82,6 @@ elif $szerzo && $dal; then
     exit 1; 
     };
   fi
-  getSzoveg "$szerzo" "$dal" || exit 1
+  getSzoveg
   echo "$tisztaSzoveg"
 fi
